@@ -9,11 +9,7 @@ using PGFPlotsX
 using Test
 
 pgfplotsx()
-
-begin
-    pgfplotsx()
-    empty!(PGFPlotsX.CUSTOM_PREAMBLE)
-end
+empty!(PGFPlotsX.CUSTOM_PREAMBLE)
 
 theme(
     :default;
@@ -85,7 +81,7 @@ plot(
     xlabel = L"y",
     color = :black,
     ylabel = "Density",
-    label = L"\psi_{\rho}(y) = (1-\rho) \phi(y) + \rho \psi_1(y)",
+    label = L"\psi_{\rho_1}(y) = (1-\rho_1) \phi(y) + \rho_1 \psi_1(y)",
 )
 plot!(
     y_grid,
@@ -94,9 +90,8 @@ plot!(
     fillalpha = 0.7,
     fillcolor = :darkorange,
     linealpha = 0,
-    label = L"\rho \psi_1(y)",
+    label = L"\rho_1 \psi_1(y)",
 )
-plot!(y_grid, (1 - ρ1) .* pdf.(Normal(), y_grid), label = L"\phi(y)")
 
 savefig("inactive_active_two_groups.pdf")
 
@@ -116,16 +111,16 @@ Gs_signal2 = cdf.(signal2, y_grid)
 plot(
     y_grid,
     [Gs_signal1 Gs_signal2],
-    label = [L"P_1 \; \textrm{(Dirac-Cauchy)}" L"P_2 \; \textrm{(Cauchy)}"],
+    label = [L"\mathrm{P}_1 \; \textrm{(Dirac-Cauchy)}" L"\mathrm{P}_2 \; \textrm{(Cauchy)}"],
     xlabel = L"\phantom{y}x\phantom{y}",
-    ylabel = L"P(x)",
+    ylabel = L"\mathrm{P}(x)",
     xlim = (-5, 5),
     legend = :topleft,
     color = [ColorSchemes.seaborn_colorblind[10] ColorSchemes.seaborn_colorblind[8]],
     linewidth = 1.6,
     alpha = 1,
     linestyle = [:solid :dot],
-    size = (700, 350),
+    size = (600,350) #(700, 350),
 )
 
 savefig("illustration_sim_signal_cdfs.pdf")
@@ -151,8 +146,6 @@ liar2 = (f0_2 / pdf(Normal(), 0)) * pdf.(Normal(), y_grid) ./ pdfs2
 
 
 
-plot(y_grid, [pdfs1 pdfs2])
-
 
 Random.seed!(1)
 
@@ -171,6 +164,7 @@ Zs_1 = sort(Zs_1)
 @rput Zs_1
 @rput Zs_2
 
+# Locfdr
 
 R"""
 library(locfdr)
@@ -180,6 +174,8 @@ locfdr_2 <- locfdr(Zs_2, nulltype =0,  bre=seq(-7,7,by=0.05), plot=0)$fdr
 
 @rget locfdr_1
 @rget locfdr_2
+
+# Fdrtool
 
 R"""
 library(fdrtool)
@@ -193,6 +189,8 @@ fdrtool_lfdr2 <- fdrtool(ps_2, statistic="pvalue")$lfdr
 @rget fdrtool_lfdr1
 @rget fdrtool_lfdr2
 
+# Qvalue
+
 R"""
 library(qvalue)
 qvalue_lfdr_1 <- qvalue(ps_1)$lfdr 
@@ -201,6 +199,38 @@ qvalue_lfdr_2 <- qvalue(ps_2)$lfdr
 
 @rget qvalue_lfdr_1
 @rget qvalue_lfdr_2
+
+# TailInflation
+
+R"""
+source('TailInflation/TailInflationA.R')
+"""
+
+R"""
+tail_inflation1 <- TailInflation.A(Zs_1[Zs_1 <= 7 & Zs_1 >= -7])
+"""
+R"""
+tail_inflation2 <- TailInflation.A(Zs_2[Zs_2 <= 7 & Zs_1 >= -7])
+"""
+
+R"""
+D_tt_1 <- LocalLinearSplines1.2A(tail_inflation1$tau,Zs_1)
+thh_tt_1 <- D_tt_1 %*% tail_inflation1$theta
+thh_tt_at_0_1 <-  (LocalLinearSplines1.2A(tail_inflation1$tau,0) %*% tail_inflation1$theta)[1]
+tailinflation_lfdr_1 <- exp(thh_tt_at_0_1)/exp(thh_tt_1)
+"""
+
+R"""
+D_tt_2 <- LocalLinearSplines1.2A(tail_inflation2$tau,Zs_2)
+thh_tt_2 <- D_tt_2 %*% tail_inflation2$theta
+thh_tt_at_0_2 <-  (LocalLinearSplines1.2A(tail_inflation2$tau,0) %*% tail_inflation2$theta)[1]
+tailinflation_lfdr_2 <- exp(thh_tt_at_0_2)/exp(thh_tt_2)
+"""
+
+@rget tailinflation_lfdr_1
+@rget tailinflation_lfdr_2
+
+
 
 
 idx1_in_05 = findall(0 .<= Zs_1 .<= 5)
@@ -217,19 +247,85 @@ plot(
     ylabel = L"\widehat{\mathrm{lfdr}}(y)",
     xlim = (0, 5),
     linewidth = 2.3,
+    size = (650, 450)
 )
-
 
 plot!(
     Zs_1[idx1_in_05],
-    [locfdr_1[idx1_in_05] fdrtool_lfdr1[idx1_in_05] qvalue_lfdr_1[idx1_in_05]],
-    label = ["locfdr (estimate)" "fdrtool (estimate)" "qvalue (estimate)"],
-    color = [cols[3] cols[4] cols[6]],
+    [locfdr_1[idx1_in_05] fdrtool_lfdr1[idx1_in_05] qvalue_lfdr_1[idx1_in_05] tailinflation_lfdr_1[idx1_in_05]],
+    label = ["locfdr (estimate)" "fdrtool (estimate)" "qvalue (estimate)" "tailinflation (estimate)"],
+    color = [cols[3] cols[4] cols[6] cols[5]],
     linestyle = :solid,
     linewidth = 1.4,
 )
 
+
+
+
+
+colors = [
+    RGB(0.00, 0.45, 0.70),  # Blue
+    RGB(0.90, 0.20, 0.00),  # Bright Red
+    RGB(0.00, 0.65, 0.45),  # Bright Teal
+    RGB(0.55, 0.25, 0.15),  # Rich Brown
+    RGB(0.50, 0.00, 0.50),  # Deep Purple
+    RGB(0.70, 0.50, 0.00),  # Golden Brown
+]
+
+plot(
+    y_grid,
+    [lfdr1 liar1],
+    label = ["lnsr (population)" "clar (population)"],
+    color = [colors[1] colors[2]],
+    xlabel = L"y",
+    ylabel = L"\widehat{\mathrm{lfdr}}(y)",
+    xlim = (0, 5),
+    linewidth = 3.3,
+    size = (650, 450),
+    alpha = [0.5 0.5]
+)
+
+plot!(
+    Zs_1[idx1_in_05],
+    [locfdr_1[idx1_in_05] fdrtool_lfdr1[idx1_in_05] qvalue_lfdr_1[idx1_in_05] tailinflation_lfdr_1[idx1_in_05]],
+    label = ["locfdr (estimate)" "fdrtool (estimate)" "qvalue (estimate)" "tailinflation (estimate)"],
+    color = [colors[6] colors[4] colors[3] colors[5]],
+    linewidth = 1.2,
+    alpha = 0.8,
+    linestyle = [:solid :dash :solid :dot]  # Alternating styles for similar curves
+)
+
 savefig("illustration_sim_1_lfdr.pdf")
+
+
+
+plot(
+    y_grid,
+    [lfdr2 liar2],
+    label = ["lnsr (population)" "clar (population)"],
+    color = [colors[1] colors[2]],
+    xlabel = L"y",
+    ylabel = L"\widehat{\mathrm{lfdr}}(y)",
+    xlim = (0, 5),
+    linewidth = 3.3,
+    size = (650, 450),
+    alpha = [0.5 0.5]
+)
+
+plot!(
+    Zs_2[idx2_in_05],
+    [locfdr_2[idx2_in_05] fdrtool_lfdr2[idx2_in_05] qvalue_lfdr_2[idx2_in_05] tailinflation_lfdr_2[idx2_in_05]],
+    label = ["locfdr (estimate)" "fdrtool (estimate)" "qvalue (estimate)" "tailinflation (estimate)"],
+    color = [colors[6] colors[4] colors[3] colors[5]],
+    linewidth = 1.2,
+    alpha = 0.8,
+    linestyle = [:solid :dash :solid :dot] 
+)
+
+
+
+
+
 
 plot(
     y_grid,
@@ -240,6 +336,7 @@ plot(
     ylabel = L"\widehat{\mathrm{lfdr}}(y)",
     xlim = (0, 5),
     linewidth = 2.3,
+    size = (600, 350)
 )
 
 plot!(
