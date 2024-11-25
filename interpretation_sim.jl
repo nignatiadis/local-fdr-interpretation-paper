@@ -232,35 +232,8 @@ tailinflation_lfdr_2 <- exp(thh_tt_at_0_2)/exp(thh_tt_2)
 
 
 
-
 idx1_in_05 = findall(0 .<= Zs_1 .<= 5)
 idx2_in_05 = findall(0 .<= Zs_2 .<= 5)
-
-cols = ColorSchemes.seaborn_colorblind6#ColorSchemes.Set2_6
-
-plot(
-    y_grid,
-    [lfdr1 liar1],
-    label = ["lnsr (population)" "clar (population)"],
-    color = [cols[1] cols[2]],
-    xlabel = L"y",
-    ylabel = L"\widehat{\mathrm{lfdr}}(y)",
-    xlim = (0, 5),
-    linewidth = 2.3,
-    size = (650, 450)
-)
-
-plot!(
-    Zs_1[idx1_in_05],
-    [locfdr_1[idx1_in_05] fdrtool_lfdr1[idx1_in_05] qvalue_lfdr_1[idx1_in_05] tailinflation_lfdr_1[idx1_in_05]],
-    label = ["locfdr (estimate)" "fdrtool (estimate)" "qvalue (estimate)" "tailinflation (estimate)"],
-    color = [cols[3] cols[4] cols[6] cols[5]],
-    linestyle = :solid,
-    linewidth = 1.4,
-)
-
-
-
 
 
 colors = [
@@ -292,7 +265,7 @@ plot!(
     color = [colors[6] colors[4] colors[3] colors[5]],
     linewidth = 1.2,
     alpha = 0.8,
-    linestyle = [:solid :dash :solid :dot]  # Alternating styles for similar curves
+    linestyle = [:solid :dash :solid :dot]  
 )
 
 savefig("illustration_sim_1_lfdr.pdf")
@@ -322,31 +295,6 @@ plot!(
     linestyle = [:solid :dash :solid :dot] 
 )
 
-
-
-
-
-
-plot(
-    y_grid,
-    [lfdr2 liar2],
-    label = ["lnsr (population)" "clar (population)"],
-    color = [cols[1] cols[2]],
-    xlabel = L"y",
-    ylabel = L"\widehat{\mathrm{lfdr}}(y)",
-    xlim = (0, 5),
-    linewidth = 2.3,
-    size = (600, 350)
-)
-
-plot!(
-    Zs_2[idx2_in_05],
-    [locfdr_2[idx2_in_05] fdrtool_lfdr2[idx2_in_05] qvalue_lfdr_2[idx2_in_05]],
-    label = ["locfdr (estimate)" "fdrtool (estimate)" "qvalue (estimate)"],
-    color = [cols[3] cols[4] cols[6]],
-    linestyle = :solid,
-    linewidth = 1.4,
-)
 
 savefig("illustration_sim_2_lfdr.pdf")
 
