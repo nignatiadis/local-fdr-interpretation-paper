@@ -7,6 +7,7 @@ using LaTeXStrings
 using ColorSchemes
 using PGFPlotsX
 using Test
+using Roots
 
 pgfplotsx()
 empty!(PGFPlotsX.CUSTOM_PREAMBLE)
@@ -26,7 +27,7 @@ theme(
 
 
 #------------------------------
-# Figure 1
+# Figure 2
 #------------------------------
 σ = 0.5
 π1_fig1 = 0.4
@@ -94,6 +95,98 @@ plot!(
 )
 
 savefig("inactive_active_two_groups.pdf")
+
+
+#------------------------------
+# Figure 6
+#------------------------------
+# Activity decomposition for asymmetric distribution
+
+# 
+μ₂ = 2.0
+π₂ = 0.6
+postmean_numerator(x) = x*pdf(Normal(), x)*(1-π₂) + μ₂*pdf(Normal(),μ₂)*π₂
+
+
+μ₁ = fzero( x-> x*pdf(Normal(), x)*(1-π₂) + μ₂*pdf(Normal(),μ₂)*π₂, -1, 0)
+
+pdfs_asymm =  0.8*pdf.(Normal(), y_grid) .+ 0.2*((1 - π₂) * pdf.(Normal(μ₁), y_grid) + π₂ * pdf.(Normal(μ₂), y_grid))
+
+ρ1_asymm = 1-pdfs_asymm[501] / pdf(Normal(), 0)
+
+tmp_activity = pdfs_asymm .- (1 - ρ1_asymm) .* pdf.(Normal(), y_grid)
+ribbon_activity_asymm = zero(y_grid), tmp_activity
+
+
+plot(
+    y_grid,
+    pdfs_asymm,
+    legend = :outertop,
+    xlim = (-5, 5),
+    ylim = (0, 0.37),
+    xlabel = L"y",
+    color = :black,
+    ylabel = "Density",
+    label = L"\psi_{\rho_1}(y) = (1-\rho_1) \phi(y) + \rho_1 \psi_1(y)",
+)
+plot!(
+    y_grid,
+    zero(y_grid),
+    ribbon = ribbon_activity_asymm,
+    fillalpha = 0.7,
+    fillcolor = :darkorange,
+    linealpha = 0,
+    label = L"\rho_1 \psi_1(y)",
+)
+
+savefig("asymmetric_active_two_groups.pdf")
+
+# temp
+
+loc_fdr = (1-ρ1_asymm) .* pdf.(Normal(), y_grid) ./ pdfs_asymm
+# q: is sech identity still true?
+using Empirikos
+prior = DiscreteNonParametric([0; 2.0; μ₁], [0.8; 0.12; 0.08])
+function exp_formula(y)
+    posterior = Empirikos.posterior(StandardNormalSample(y), prior)
+    #sum( sech.(y .* support(posterior)) .* probs(posterior))
+    sum( exp.(-y .* support(posterior)) .* probs(posterior))
+end 
+
+function sech_formula(y)
+    posterior = Empirikos.posterior(StandardNormalSample(y), prior)
+    #sum( sech.(y .* support(posterior)) .* probs(posterior))
+    #myf(x) = 1/(exp(x)-x)
+    myf(x) = sech(x)
+    sum( myf.(y .* support(posterior)) .* probs(posterior))
+end 
+
+
+function sign_rate_formula(y)
+    posterior = Empirikos.posterior(StandardNormalSample(y), prior)
+    #sum( sech.(y .* support(posterior)) .* probs(posterior))
+    y <= 0 ? sum(probs(posterior)[2:3]) : sum(probs(posterior)[1:2])
+end
+
+plot(y_grid, loc_fdr)
+plot!(y_grid, sign_rate_formula.(y_grid))
+
+plot(y_grid, loc_fdr)
+plot!(y_grid, sech_formula.(y_grid))
+plot!(y_grid, sech_formula.(y_grid))
+
+plot(y_grid, sech_formula.(y_grid) .- loc_fdr)
+
+f(y) =  sum( [0.8; 0.12; 0.08] .* [(tanh(x*y)+1)*exp(-x^2/2) for x in [0; 2.0; μ₁]])
+f(1.0)
+f(-5.0)
+
+
+# plot(y_grid, (1-ρ1_asymm).* pdf.(Normal(), y_grid) ./ pdfs_asymm)
+# plot(y_grid, log.(pdfs_asymm ./ pdf.(Normal(), y_grid)))
+# plot(y_grid, pdfs_asymm ./ pdf.(Normal(), y_grid))
+
+
 
 
 #------------------------------
